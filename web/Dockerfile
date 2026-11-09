@@ -4,9 +4,9 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 # Pre-render the nginx configuration at build time instead of runtime
 # This avoids permission issues with tmpfs mounts
 ENV API_UPSTREAM=api:8000
-COPY nginx/default.conf.template /tmp/default.conf.template
-RUN envsubst '$API_UPSTREAM' < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf && \
-    rm /tmp/default.conf.template
+COPY nginx/default.conf.template /etc/nginx/conf.d/default.conf.template
+RUN envsubst '$API_UPSTREAM' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && \
+    rm /etc/nginx/conf.d/default.conf.template
 COPY html/ /usr/share/nginx/html/
 
 EXPOSE 8080
