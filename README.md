@@ -11,7 +11,7 @@ All data is synthetic. Nothing connects to live equipment. v1.0 (`../scfn_dashbo
 ## Architecture
 
 ```
-Browser ──► web (nginx :8080) ──/api/──► api (FastAPI :8000) ──► ollama (GPU, qwen3:8b)
+Browser ──► web (nginx :8081) ──/api/──► api (FastAPI :8000) ──► ollama (GPU, qwen3:8b)
              serves index.html            adds analyst prompt,      model weights in the
              (the whole dashboard)        streams SSE, parses        ollama-models volume
                                           proposals
@@ -44,7 +44,7 @@ docker compose logs -f ollama-init        # first run downloads ~5 GB; wait for 
 ./scripts/check-deployment.sh             # 8 checks: web, dashboard, API, Ollama, model, token, chat, GPU placement
 ```
 
-Open `http://<host>:8080`, go to **Administrator**, and enter the `ADMIN_TOKEN` from `.env` when asked.
+Open `http://<host>:8081`, go to **Administrator**, and enter the `ADMIN_TOKEN` from `.env` when asked.
 The first answer takes longer while the model loads into VRAM. It then stays loaded for `OLLAMA_KEEP_ALIVE` (30 min).
 
 ## GPU sizing (8-12 GB VRAM)
@@ -85,7 +85,7 @@ The Twin advisor context is about 5,000 characters (about 1,500 tokens). With hi
 | `LLM_TEMPERATURE` | `0.3` | Lower = more consistent analysis |
 | `MAX_CONCURRENT_CHATS` | `2` | Further requests get HTTP 429 |
 | `MAX_CONTEXT_CHARS` | `30000` | Snapshot budget; detail sections are dropped first if exceeded |
-| `WEB_BIND` / `WEB_PORT` | `0.0.0.0` / `8080` | Published address. Use `127.0.0.1` behind a TLS reverse proxy |
+| `WEB_BIND` / `WEB_PORT` | `0.0.0.0` / `8081` | Published address. Use `127.0.0.1` behind a TLS reverse proxy |
 
 ## Operations
 
@@ -99,7 +99,7 @@ docker compose down                       # stop (the model volume is kept)
 ```
 
 **Security:** the token is a shared secret held in the browser's local storage. Run on a trusted network, or put a
-TLS reverse proxy or SSO in front of port 8080. Model output is escaped before display, and proposals are clamped
+TLS reverse proxy or SSO in front of port 8081. Model output is escaped before display, and proposals are clamped
 to the dashboard's lever ranges.
 
 ## Develop and test (no Docker or GPU needed)

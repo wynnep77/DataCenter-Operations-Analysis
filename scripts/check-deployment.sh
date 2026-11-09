@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Post-deployment check, run on the Docker host:  ./scripts/check-deployment.sh [http://localhost:8080]
+# Post-deployment check, run on the Docker host:  ./scripts/check-deployment.sh [http://localhost:8081]
 # Reads ADMIN_TOKEN from .env if it is not already set in the environment.
 set -uo pipefail
-BASE="${1:-http://localhost:8080}"
+BASE="${1:-http://localhost:8081}"
 cd "$(dirname "$0")/.."
 if [ -z "${ADMIN_TOKEN:-}" ] && [ -f .env ]; then ADMIN_TOKEN="$(grep -E '^ADMIN_TOKEN=' .env | cut -d= -f2-)"; fi
 pass=0; fail=0
