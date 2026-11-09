@@ -1,10 +1,12 @@
 # Callan Operational Dashboard v2 - static dashboard + reverse proxy to the API
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
-# The image renders /etc/nginx/templates/*.template with envsubst at start-up (only API_* variables).
-ENV API_UPSTREAM=api:8000 \
-    NGINX_ENVSUBST_FILTER=^API_
-COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+# Pre-render the nginx configuration at build time instead of runtime
+# This avoids permission issues with tmpfs mounts
+ENV API_UPSTREAM=api:8000
+COPY nginx/default.conf.template /tmp/default.conf.template
+RUN envsubst '$API_UPSTREAM' < /tmp/default.conf.template > /etc/nginx/conf.d/default.conf && \
+    rm /tmp/default.conf.template
 COPY html/ /usr/share/nginx/html/
 
 EXPOSE 8080
