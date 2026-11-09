@@ -80,9 +80,10 @@ services:
     environment:
       API_UPSTREAM: api:8000
     ports:
-      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:8080"
-    read_only: true
-    tmpfs: [/tmp, /etc/nginx/conf.d]
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8081}:8080"
+    tmpfs:
+      - /tmp
+      - /etc/nginx/conf.d
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
 
