@@ -36,7 +36,7 @@ Then:
 
 ```bash
 git clone https://github.com/wynnep77/DataCenter-Operations-Analysis.git
-cd DataCenter-Operations-Analysis/v2
+cd DataCenter-Operations-Analysis
 cp .env.example .env
 sed -i "s/^ADMIN_TOKEN=.*/ADMIN_TOKEN=$(openssl rand -hex 24)/" .env
 docker compose up -d --build              # starts ollama, pulls the model once (ollama-init), api, web
