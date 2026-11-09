@@ -42,10 +42,11 @@ sed -i "s/^ADMIN_TOKEN=.*/ADMIN_TOKEN=$(openssl rand -hex 24)/" .env
 docker compose up -d --build              # starts ollama, pulls the model once (ollama-init), api, web
 docker compose logs -f ollama-init        # first run downloads ~5 GB; wait for "models available"
 ./scripts/check-deployment.sh             # 8 checks: web, dashboard, API, Ollama, model, token, chat, GPU placement
+./scripts/show-admin-token.sh             # display your administrator token
+./scripts/preload-model.sh                # optional: preload model into VRAM for faster first response
 ```
 
-Open `http://<host>:8081`, go to **Administrator**, and enter the `ADMIN_TOKEN` when asked.
-To view your token, run: `./scripts/show-admin-token.sh`
+Open `http://<host>:8081`, go to **Administrator**, and enter the token displayed above.
 The dashboard will remember the token in your browser's local storage after the first use.
 The first answer takes longer while the model loads into VRAM. It then stays loaded for `OLLAMA_KEEP_ALIVE` (30 min).
 
