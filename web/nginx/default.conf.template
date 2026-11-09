@@ -1,0 +1,42 @@
+# Rendered at container start: ${API_UPSTREAM} comes from the environment (default api:8000).
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    gzip on;
+    gzip_types text/html text/css application/javascript application/json;
+
+    location = /nginx-health { access_log off; default_type text/plain; return 200 "ok\n"; }
+
+    # The dashboard is one self-contained file; always revalidate so upgrades show immediately.
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy same-origin always;
+        add_header X-Frame-Options SAMEORIGIN always;
+    }
+
+    # AI analyst API. Chat replies stream as server-sent events: no buffering, long timeouts.
+    location /api/ {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 900s;
+        proxy_send_timeout 900s;
+        client_max_body_size 1m;
+    }
+}
