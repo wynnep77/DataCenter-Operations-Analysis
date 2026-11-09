@@ -44,7 +44,9 @@ docker compose logs -f ollama-init        # first run downloads ~5 GB; wait for 
 ./scripts/check-deployment.sh             # 8 checks: web, dashboard, API, Ollama, model, token, chat, GPU placement
 ```
 
-Open `http://<host>:8081`, go to **Administrator**, and enter the `ADMIN_TOKEN` from `.env` when asked.
+Open `http://<host>:8081`, go to **Administrator**, and enter the `ADMIN_TOKEN` when asked.
+To view your token, run: `./scripts/show-admin-token.sh`
+The dashboard will remember the token in your browser's local storage after the first use.
 The first answer takes longer while the model loads into VRAM. It then stays loaded for `OLLAMA_KEEP_ALIVE` (30 min).
 
 ## GPU sizing (8-12 GB VRAM)
