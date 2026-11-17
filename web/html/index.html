@@ -840,6 +840,7 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
         <button class="btn" type="button" onclick="hallAddAir()" title="Add an air-cooled rack in the next free position 5–12">+ Air rack</button>
         <button class="btn" type="button" onclick="hallFill()">Fill 2 × 6</button>
         <button class="btn" type="button" onclick="hallReset()">Reset default</button>
+        <button class="btn" type="button" onclick="hallClear()" title="Clear saved configuration and reset to defaults">Clear saved</button>
       </div>
     </div>
     <div id="hallCfg"></div>
@@ -1500,6 +1501,46 @@ var HALL_ROW=12, HALL_MAX=24;
 function hallDefault(r){ r.on = r.pos<=4 || r.id==='A5'; r.nodes=4; r.plat = r.id==='A5' ? 'AIR' : (r.row==='A'?'XE9780L':'XE9785L'); r.air={XE9780:1,XE7740:2,R7725:4}; r.opt={XE9780:'B300',XE7740:'DW600',R7725:'none'}; r.rackU=48; r.door=false; }
 ['A','B'].forEach(function(row,ri){ for (var p=1;p<=HALL_ROW;p++){ var r={id:row+p, row:row, pos:p, bms:p<=4?(ri*4+p):0}; hallDefault(r); HALL.push(r); } });
 var selRack='A1';
+
+// ===== Hall persistence =====
+function hallSave(){
+  try {
+    var config = HALL.map(function(r){ return {id:r.id, on:r.on, nodes:r.nodes, plat:r.plat, air:r.air, opt:r.opt, rackU:r.rackU, door:r.door}; });
+    localStorage.setItem('dcoaHallConfig', JSON.stringify(config));
+    localStorage.setItem('dcoaNodeCount', S.nodeCount);
+  } catch(e){ console.warn('Failed to save hall config:', e); }
+}
+function hallLoad(){
+  try {
+    var saved = localStorage.getItem('dcoaHallConfig');
+    if (!saved) return false;
+    var config = JSON.parse(saved);
+    if (!Array.isArray(config) || config.length===0) return false;
+    // Apply saved configuration
+    config.forEach(function(cfg){
+      var r = hallRack(cfg.id);
+      if (r){
+        r.on = cfg.on;
+        r.nodes = cfg.nodes;
+        r.plat = cfg.plat;
+        r.air = cfg.air;
+        r.opt = cfg.opt;
+        r.rackU = cfg.rackU;
+        r.door = cfg.door;
+      }
+    });
+    var savedNodeCount = localStorage.getItem('dcoaNodeCount');
+    if (savedNodeCount) S.nodeCount = parseInt(savedNodeCount, 10) || 4;
+    return true;
+  } catch(e){ console.warn('Failed to load hall config:', e); return false; }
+}
+function hallClear(){
+  try {
+    localStorage.removeItem('dcoaHallConfig');
+    localStorage.removeItem('dcoaNodeCount');
+    hallReset();
+  } catch(e){ console.warn('Failed to clear hall config:', e); }
+}
 function hallRack(id){ for (var i=0;i<HALL.length;i++){ if(HALL[i].id===id) return HALL[i]; } return null; }
 function rackByBms(n){ for (var i=0;i<HALL.length;i++){ if(HALL[i].bms===n) return HALL[i]; } return null; }
 function rackCalc(r){
@@ -1704,7 +1745,7 @@ function renderAir(ctx){
 }
 function hallMixed(){ var a=HALL.filter(function(r){return r.on && r.plat!=='AIR';}); return a.some(function(r){ return r.nodes!==a[0].nodes; }); }
 function hallLog(msg){ var T=hallTotals(); logEvent(consoleEvents,'info','Hall config: '+msg+' · '+T.n+' racks · '+T.nodes+' nodes · '+T.gpus+' GPUs'); }
-function hallChanged(){ hallBuilt=false; hideTip(); syncLoadControls(); render(); }
+function hallChanged(){ hallBuilt=false; hideTip(); syncLoadControls(); render(); hallSave(); }
 function hallToggle(id){
   var r=hallRack(id); if(!r || r.id==='A1') return;
   r.on=!r.on; if (r.on) r.nodes=S.nodeCount;
@@ -1744,6 +1785,21 @@ function hallReset(){
   HALL.forEach(hallDefault);
   S.nodeCount=4; rackBuilt=false; selRack='A1';
   hallLog('reset to default layout · A1–A4 XE9780L, B1–B4 XE9785L, A5 air rack'); hallChanged();
+  hallSave();
+}
+function hallMove(id, dir){
+  var r=hallRack(id); if(!r || r.id==='A1') return;
+  var newPos = r.pos + dir;
+  if (newPos<1 || newPos>HALL_ROW) return;
+  var target = hallRack(r.row+newPos);
+  if (!target) return;
+  // Swap the rack data (on, nodes, plat, air, opt, rackU, door) between positions
+  var tempOn = r.on, tempNodes = r.nodes, tempPlat = r.plat, tempAir = r.air, tempOpt = r.opt, tempRackU = r.rackU, tempDoor = r.door;
+  r.on = target.on; r.nodes = target.nodes; r.plat = target.plat; r.air = target.air; r.opt = target.opt; r.rackU = target.rackU; r.door = target.door;
+  target.on = tempOn; target.nodes = tempNodes; target.plat = tempPlat; target.air = tempAir; target.opt = tempOpt; target.rackU = tempRackU; target.door = tempDoor;
+  hallLog('moved rack '+id+' to position '+newPos);
+  hallChanged();
+  hallSave();
 }
 function hallFill(){
   HALL.forEach(function(r){ if(!r.on && r.pos<=6){ r.on=true; r.nodes=S.nodeCount; } });
@@ -2952,6 +3008,7 @@ function renderHallCfg(){
       var mid = isAir
         ? '<div class="rt-act"><span class="rt-m">'+(r.air.XE9780||0)+'·'+(r.air.XE7740||0)+'·'+(r.air.R7725||0)+' srv</span><button class="lnk" type="button" onclick="selectAir(\''+r.id+'\')" title="Edit in the Air-cooled Rack Builder below">Edit ↓</button><span class="rt-m">'+c.gpus+' GPU</span></div>'
         : '<div class="rt-act"><div class="stepper"><button type="button" onclick="hallNodes(\''+r.id+'\',-1)" aria-label="Remove node from '+r.id+'">−</button><span>'+c.nodes+'</span><button type="button" onclick="hallNodes(\''+r.id+'\',1)" aria-label="Add node to '+r.id+'">+</button></div><span class="rt-m">'+c.gpus+' GPU</span></div>';
+      var moveBtns = r.id!=='A1' ? '<div class="rt-act"><button class="lnk" type="button" onclick="hallMove(\''+r.id+'\',-1)" title="Move left" '+(r.pos<=1?'disabled':'')+'>←</button><button class="lnk" type="button" onclick="hallMove(\''+r.id+'\',1)" title="Move right" '+(r.pos>=HALL_ROW?'disabled':'')+'>→</button></div>' : '';
       html+='<div class="rt-tile '+(c.st!=='good'?c.st:'')+(r.id===selRack?' sel':'')+'" data-glean-id="hall-'+r.id+'">'+
         '<div class="rt-h"><b>'+r.id+'</b>'+badge+'</div>'+
         '<div class="rt-act">'+chip+'</div>'+
@@ -2959,6 +3016,7 @@ function renderHallCfg(){
         '<div class="rt-m"><b>'+c.dem.toFixed(0)+'</b> / '+c.cap+' kW · '+(c.peak>0?c.peak.toFixed(0)+'°C':'—')+'</div>'+
         '<div class="bar" style="margin-top:0"><span style="width:'+pct+'%;background:'+(c.st==='good'?'var(--primary)':col[c.st])+'"></span></div>'+
         '<div class="rt-act"><span class="pill '+c.st+'" style="font-size:9px;padding:1px 6px">'+c.lab+'</span><button class="lnk" type="button" onclick="hallToggle(\''+r.id+'\')" '+(r.id==='A1'?'disabled title="A1 is the reference rack"':'')+'>Remove</button></div>'+
+        moveBtns+
         '</div>';
     });
     html+='</div>';
@@ -3749,7 +3807,7 @@ function renderAdmin(){
 window.addEventListener('DOMContentLoaded', function(){
   document.documentElement.setAttribute('data-ui','light'); document.getElementById('themeBtn').textContent='🌙 Dark';
   initCharts();
-  syncCapture(); buildRack(); buildHall(); buildScnList(); renderScnSeq(); buildBms(); buildCrac();
+  syncCapture(); buildRack(); buildHall(); hallLoad(); buildScnList(); renderScnSeq(); buildBms(); buildCrac();
   logEvent(bmsEvents,'good','BMS polling started · 2 CDUs, 2 CRACs (lead CRAC 10), 8 rack branches, 8 RDHX branches, room sensor, leak panels');
   logEvent(consoleEvents,'good','CDU XDU1350B online · firmware 3.1.2 · nominal set-points loaded');
   logEvent(consoleEvents,'info','Secondary fluid PG25 · 2 CDU N+1 configuration verified');
