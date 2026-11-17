@@ -183,8 +183,12 @@ html:not([data-ui='dark']) .cabinet{box-shadow:0 10px 24px rgba(20,40,60,.25),in
 .cfg-row .rl{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center}
 .rt-tile{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .rt-tile.sel{box-shadow:0 0 0 2px var(--primary)}
+.rt-tile.move-selected{box-shadow:0 0 0 2px var(--good);cursor:pointer}
+.rt-tile.move-target{cursor:pointer;opacity:0.8}
+.rt-tile.move-target:hover{opacity:1;box-shadow:0 0 0 2px var(--warn)}
 .rt-tile.warn{border-color:var(--warn)}.rt-tile.alarm{border-color:var(--alarm)}
 .rt-tile.empty{border-style:dashed;background:transparent;align-items:center;justify-content:center;min-height:104px}
+.move-indicator{font-size:9px;color:var(--good);font-weight:600}
 .rt-h{display:flex;justify-content:space-between;align-items:center;gap:4px}
 .rt-h b{font-size:13px;color:var(--text)}
 .rt-badge{font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -832,13 +836,12 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
 
   <div class="card section-gap" data-glean-id="twin-config">
     <div class="nvl-head">
-      <h3 style="margin:0">Hall Configuration — racks &amp; nodes <span class="info">i<span class="tip">Add or remove racks (up to 12 per row, 24 racks in total) and set 1–8 XE9780L or XE9785L nodes in each DLC rack. Click a rack's platform tag to switch it between XE9780L and XE9785L; positions 5–12 can also be an air-cooled rack of XE9780, XE7740 and R7725 servers (edit its servers in Rack View). Rack A1 is the reference rack in Rack View and the Live Console, and can't be removed. Racks A1–A4 and B1–B4 are BMS branches R01–R08; A5–A6 and B5–B6 are extra positions that aren't on the BMS capture. Hall totals drive the CDU, CRAC, BMS and Sustainability figures. Simulated.</span></span></h3>
+      <h3 style="margin:0">Hall Configuration — racks &amp; nodes <span class="info">i<span class="tip">Add or remove racks (up to 4 per row, 8 racks in total) and set 1–8 XE9780L or XE9785L nodes in each DLC rack. Click a rack's platform tag to switch it between XE9780L and XE9785L. Click a rack to select it for moving, then click a target position to move it (works between Row A and Row B). Rack A1 is the reference rack in Rack View and the Live Console, and can't be removed or moved. Racks A1–A4 and B1–B4 are BMS branches R01–R08. Hall totals drive the CDU, CRAC, BMS and Sustainability figures. Simulated.</span></span></h3>
       <div class="cfg-ctl">
         <span>All racks</span><div class="stepper"><button type="button" onclick="setNodes(-1)" aria-label="Remove a node from every rack">−</button><span id="cfgAllVal">4</span><button type="button" onclick="setNodes(1)" aria-label="Add a node to every rack">+</button></div>
         <span>Racks</span><div class="stepper"><button type="button" onclick="hallStep(-1)" aria-label="Remove one rack">−</button><span id="rackCnt1">8</span><button type="button" onclick="hallStep(1)" aria-label="Add one rack">+</button></div>
         <div class="mode-toggle" title="Rear-door heat exchangers"><button id="rdOn1" class="on" type="button" onclick="setRearDoors(true)">Rear doors · 100% to water</button><button id="rdOff1" type="button" onclick="setRearDoors(false)">No rear doors</button></div>
-        <button class="btn" type="button" onclick="hallAddAir()" title="Add an air-cooled rack in the next free position 5–12">+ Air rack</button>
-        <button class="btn" type="button" onclick="hallFill()">Fill 2 × 6</button>
+        <button class="btn" type="button" onclick="hallFill()">Fill 2 × 4</button>
         <button class="btn" type="button" onclick="hallReset()">Reset default</button>
         <button class="btn" type="button" onclick="hallClear()" title="Clear saved configuration and reset to defaults">Clear saved</button>
       </div>
@@ -1494,13 +1497,14 @@ function loadConstraints(){
 }
 
 /* ===== Hall configuration (Digital Twin) ===== */
-// 12 positions; A1–A4 / B1–B4 = BMS branches R01–R08; A1 = reference rack (Rack View / Console)
+// 4 positions per row; A1–A4 / B1–B4 = BMS branches R01–R08; A1 = reference rack (Rack View / Console)
 var HALL=[];
-var HALL_ROW=12, HALL_MAX=24;
-// default: Row A XE9780L, Row B XE9785L (A1–A4 / B1–B4 on the BMS), A5 = air-cooled rack (XE9780 / XE7740 / R7725)
-function hallDefault(r){ r.on = r.pos<=4 || r.id==='A5'; r.nodes=4; r.plat = r.id==='A5' ? 'AIR' : (r.row==='A'?'XE9780L':'XE9785L'); r.air={XE9780:1,XE7740:2,R7725:4}; r.opt={XE9780:'B300',XE7740:'DW600',R7725:'none'}; r.rackU=48; r.door=false; }
-['A','B'].forEach(function(row,ri){ for (var p=1;p<=HALL_ROW;p++){ var r={id:row+p, row:row, pos:p, bms:p<=4?(ri*4+p):0}; hallDefault(r); HALL.push(r); } });
+var HALL_ROW=4, HALL_MAX=8;
+// default: Row A XE9780L, Row B XE9785L (A1–A4 / B1–B4 on the BMS)
+function hallDefault(r){ r.on = r.pos<=4; r.nodes=4; r.plat = r.row==='A'?'XE9780L':'XE9785L'; r.air={XE9780:1,XE7740:2,R7725:4}; r.opt={XE9780:'B300',XE7740:'DW600',R7725:'none'}; r.rackU=48; r.door=false; }
+['A','B'].forEach(function(row,ri){ for (var p=1;p<=HALL_ROW;p++){ var r={id:row+p, row:row, pos:p, bms:ri*4+p}; hallDefault(r); HALL.push(r); } });
 var selRack='A1';
+var moveRack=null; // rack selected for moving
 
 // ===== Hall persistence =====
 function hallSave(){
@@ -1531,6 +1535,7 @@ function hallLoad(){
     });
     var savedNodeCount = localStorage.getItem('dcoaNodeCount');
     if (savedNodeCount) S.nodeCount = parseInt(savedNodeCount, 10) || 4;
+    moveRack=null; // always clear move selection on load
     return true;
   } catch(e){ console.warn('Failed to load hall config:', e); return false; }
 }
@@ -1538,6 +1543,7 @@ function hallClear(){
   try {
     localStorage.removeItem('dcoaHallConfig');
     localStorage.removeItem('dcoaNodeCount');
+    moveRack=null;
     hallReset();
   } catch(e){ console.warn('Failed to clear hall config:', e); }
 }
@@ -1617,11 +1623,10 @@ function platLabel(r){ return r.plat==='AIR' ? 'air-cooled' : r.plat; }
 function rackHasDoor(r){ return r.plat==='AIR' ? !!r.door : S.rearDoors; }
 function hallPlat(id){
   var r=hallRack(id); if(!r) return;
-  var seq = r.bms ? ['XE9780L','XE9785L'] : ['XE9780L','XE9785L','AIR'];
+  var seq = ['XE9780L','XE9785L'];
   var i=seq.indexOf(r.plat); r.plat=seq[(i+1)%seq.length];
   if (r.id==='A1'){ rackBuilt=false; selNode=0; }
-  if (r.plat==='AIR') selAir=r.id;
-  hallLog('rack '+id+' set to '+(r.plat==='AIR'?'air-cooled (XE9780 / XE7740 / R7725)':PLAT[r.plat].name));
+  hallLog('rack '+id+' set to '+PLAT[r.plat].name);
   hallChanged();
 }
 var selAir='A5';
@@ -1667,11 +1672,8 @@ function airDoor(id,on){
   hallChanged();
 }
 function hallAddAir(){
-  var r=hallOrder().filter(function(x){ return !x.bms && !x.on; })[0];
-  if (!r){ logEvent(consoleEvents,'warn','No free position (5–12) for another air rack'); render(); return; }
-  r.plat='AIR'; r.on=true; selAir=r.id;
-  hallLog('added air rack '+r.id+' ('+(r.air.XE9780||0)+'× XE9780 · '+(r.air.XE7740||0)+'× XE7740 · '+(r.air.R7725||0)+'× R7725)');
-  hallChanged();
+  logEvent(consoleEvents,'warn','Air racks not available in 4-position configuration');
+  render();
 }
 function selectAir(id){ selAir=id; renderAir(''); renderAir('_t'); }
 var airSig={};
@@ -1684,8 +1686,8 @@ function renderAir(ctx){
   if (!list.length){
     if (airSig[ctx]!=='none'){
       airSig[ctx]='none'; setTxt('airTitle'+ctx,'none in hall');
-      if (sel) sel.innerHTML='<button type="button" onclick="hallAddAir()">+ Air rack</button>';
-      body.innerHTML='<p style="font-size:12px;color:var(--text2);margin:8px 0 0">No air-cooled rack in the hall. Use + Air rack to add one in the next free position 5–12, or click the platform tag on a rack in positions 5–12.</p>';
+      if (sel) sel.innerHTML='';
+      body.innerHTML='<p style="font-size:12px;color:var(--text2);margin:8px 0 0">Air-cooled racks not available in 4-position configuration.</p>';
     }
     return;
   }
@@ -1694,7 +1696,7 @@ function renderAir(ctx){
   var sig=[selAir, list.map(function(x){ return x.id; }).join(','), JSON.stringify(r.air), JSON.stringify(r.opt), r.door, RU].join('|');
   if (airSig[ctx]!==sig){
     airSig[ctx]=sig;
-    if (sel) sel.innerHTML = list.map(function(x){ return '<button type="button" class="'+(x.id===selAir?'on':'')+'" onclick="selectAir(\''+x.id+'\')">'+x.id+'</button>'; }).join('')+'<button type="button" onclick="hallAddAir()" title="Add another air-cooled rack">+ Air rack</button>';
+    if (sel) sel.innerHTML = list.map(function(x){ return '<button type="button" class="'+(x.id===selAir?'on':'')+'" onclick="selectAir(\''+x.id+'\')">'+x.id+'</button>'; }).join('');
     var q=function(v){ return '\''+v+'\''; };
     var bar='<div class="air-bar"><span>Rack</span><div class="mode-toggle">'+[48,52].map(function(U){ return '<button type="button" class="'+(RU===U?'on':'')+'" onclick="airSize('+q(id)+','+U+')">IR50'+U+' · '+U+'U</button>'; }).join('')+'</div>'+
       '<span>Presets</span>'+Object.keys(AIRPRE).map(function(p){ return '<button class="btn" type="button" onclick="airPreset('+q(id)+','+q(p)+')">'+AIRPRE[p].l+'</button>'; }).join('')+'</div>';
@@ -1770,40 +1772,57 @@ function hallStep(d){
   var n=hallCount(), r, pick;
   if (d>0){
     if (n>=HALL_MAX) return;
-    pick=hallOrder().filter(function(x){ return !x.on && x.plat!=='AIR'; }); if (!pick.length) pick=hallOrder().filter(function(x){ return !x.on; });
+    pick=hallOrder().filter(function(x){ return !x.on; });
     r=pick[0]; r.on=true; r.nodes=S.nodeCount;
-  } else {                                   // remove the last DLC rack first; the air rack goes only when nothing else is left
+  } else {                                   // remove the last rack first
     if (n<=1) return;
-    pick=hallOrder().filter(function(x){ return x.on && x.id!=='A1' && x.plat!=='AIR'; }); if (!pick.length) pick=hallOrder().filter(function(x){ return x.on && x.id!=='A1'; });
+    pick=hallOrder().filter(function(x){ return x.on && x.id!=='A1'; });
     r=pick[pick.length-1]; r.on=false; if (selRack===r.id) selRack='A1';
   }
-  if (r.bms) logEvent(bmsEvents, r.on?'good':'info', 'R'+('0'+r.bms).slice(-2)+' branch '+(r.on?'returned to service — rack '+r.id+' added':'isolated — rack '+r.id+' removed')+' in hall configuration');
+  if (r.bms) logEvent(bmsEvents, r.on?'good':'info', 'R'+('0'+r.bms).slice(-2)+' branch '+(r.on?'returned to service — rack '+r.id+' added':'isolated — rack '+r.id+'removed')+' in hall configuration');
   hallLog((r.on?'added rack ':'removed rack ')+r.id+' ('+platLabel(r)+')');
   hallChanged();
 }
 function hallReset(){
   HALL.forEach(hallDefault);
-  S.nodeCount=4; rackBuilt=false; selRack='A1';
-  hallLog('reset to default layout · A1–A4 XE9780L, B1–B4 XE9785L, A5 air rack'); hallChanged();
+  S.nodeCount=4; rackBuilt=false; selRack='A1'; moveRack=null;
+  hallLog('reset to default layout · A1–A4 XE9780L, B1–B4 XE9785L'); hallChanged();
   hallSave();
 }
-function hallMove(id, dir){
-  var r=hallRack(id); if(!r || r.id==='A1') return;
-  var newPos = r.pos + dir;
-  if (newPos<1 || newPos>HALL_ROW) return;
-  var target = hallRack(r.row+newPos);
-  if (!target) return;
-  // Swap the rack data (on, nodes, plat, air, opt, rackU, door) between positions
-  var tempOn = r.on, tempNodes = r.nodes, tempPlat = r.plat, tempAir = r.air, tempOpt = r.opt, tempRackU = r.rackU, tempDoor = r.door;
-  r.on = target.on; r.nodes = target.nodes; r.plat = target.plat; r.air = target.air; r.opt = target.opt; r.rackU = target.rackU; r.door = target.door;
-  target.on = tempOn; target.nodes = tempNodes; target.plat = tempPlat; target.air = tempAir; target.opt = tempOpt; target.rackU = tempRackU; target.door = tempDoor;
-  hallLog('moved rack '+id+' to position '+newPos);
+function hallSelectForMove(id){
+  var r=hallRack(id);
+  if (!r || !r.on || r.id==='A1') return;
+  if (moveRack===id){
+    moveRack=null; // deselect
+  } else {
+    moveRack=id; // select for moving
+  }
+  render();
+}
+function hallMoveTo(targetId){
+  if (!moveRack) return;
+  var source=hallRack(moveRack), target=hallRack(targetId);
+  if (!source || !target || source.id===target.id) return;
+  if (!target.on && target.id!=='A1'){
+    // Move to empty position
+    var tempOn = source.on, tempNodes = source.nodes, tempPlat = source.plat, tempAir = source.air, tempOpt = source.opt, tempRackU = source.rackU, tempDoor = source.door;
+    source.on = false; source.nodes = 4; source.plat = source.row==='A'?'XE9780L':'XE9785L'; source.air={XE9780:1,XE7740:2,R7725:4}; source.opt={XE9780:'B300',XE7740:'DW600',R7725:'none'}; source.rackU=48; source.door=false;
+    target.on = tempOn; target.nodes = tempNodes; target.plat = tempPlat; target.air = tempAir; target.opt = tempOpt; target.rackU = tempRackU; target.door = tempDoor;
+    hallLog('moved rack '+moveRack+' to '+targetId);
+  } else if (target.on && target.id!=='A1' && target.id!==moveRack){
+    // Swap with occupied position
+    var tempOn = source.on, tempNodes = source.nodes, tempPlat = source.plat, tempAir = source.air, tempOpt = source.opt, tempRackU = source.rackU, tempDoor = source.door;
+    source.on = target.on; source.nodes = target.nodes; source.plat = target.plat; source.air = target.air; source.opt = target.opt; source.rackU = target.rackU; source.door = target.door;
+    target.on = tempOn; target.nodes = tempNodes; target.plat = tempPlat; target.air = tempAir; target.opt = tempOpt; target.rackU = tempRackU; target.door = tempDoor;
+    hallLog('swapped racks '+moveRack+' and '+targetId);
+  }
+  moveRack=null;
   hallChanged();
   hallSave();
 }
 function hallFill(){
-  HALL.forEach(function(r){ if(!r.on && r.pos<=6){ r.on=true; r.nodes=S.nodeCount; } });
-  hallLog('positions 1–6 in both rows populated'); hallChanged();
+  HALL.forEach(function(r){ if(!r.on && r.pos<=4){ r.on=true; r.nodes=S.nodeCount; } });
+  hallLog('positions 1–4 in both rows populated'); hallChanged();
 }
 
 /* ===== IT load controls ===== */
@@ -3001,22 +3020,21 @@ function renderHallCfg(){
     html+='<div class="cfg-row"><div class="rl">Row '+row+'</div>';
     var L=hallLen();
     HALL.filter(function(r){return r.row===row && r.pos<=L;}).forEach(function(r){
-      if (!r.on){ html+='<div class="rt-tile empty"><button class="add-btn" type="button" onclick="hallToggle(\''+r.id+'\')">+ Add '+(r.plat==='AIR'?'air rack ':'rack ')+r.id+'</button><span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):'not on BMS')+'</span></div>'; return; }
-      var c=rackCalc(r), pct=Math.min(100,c.dem/c.cap*100), isAir=!!c.isAir;
-      var badge = r.id==='A1' ? '<span class="rt-badge ref">R01 · Rack View</span>' : '<span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):(isAir?'air · CRAC':'not on BMS'))+'</span>';
-      var chip = '<button type="button" class="plat-chip p-'+r.plat+'" onclick="hallPlat(\''+r.id+'\')" title="Switch platform'+(r.bms?' (XE9780L / XE9785L)':' (XE9780L / XE9785L / air rack)')+'">'+(isAir?'Air rack':r.plat)+' ⇄</button>';
-      var mid = isAir
-        ? '<div class="rt-act"><span class="rt-m">'+(r.air.XE9780||0)+'·'+(r.air.XE7740||0)+'·'+(r.air.R7725||0)+' srv</span><button class="lnk" type="button" onclick="selectAir(\''+r.id+'\')" title="Edit in the Air-cooled Rack Builder below">Edit ↓</button><span class="rt-m">'+c.gpus+' GPU</span></div>'
-        : '<div class="rt-act"><div class="stepper"><button type="button" onclick="hallNodes(\''+r.id+'\',-1)" aria-label="Remove node from '+r.id+'">−</button><span>'+c.nodes+'</span><button type="button" onclick="hallNodes(\''+r.id+'\',1)" aria-label="Add node to '+r.id+'">+</button></div><span class="rt-m">'+c.gpus+' GPU</span></div>';
-      var moveBtns = r.id!=='A1' ? '<div class="rt-act"><button class="lnk" type="button" onclick="hallMove(\''+r.id+'\',-1)" title="Move left" '+(r.pos<=1?'disabled':'')+'>←</button><button class="lnk" type="button" onclick="hallMove(\''+r.id+'\',1)" title="Move right" '+(r.pos>=HALL_ROW?'disabled':'')+'>→</button></div>' : '';
-      html+='<div class="rt-tile '+(c.st!=='good'?c.st:'')+(r.id===selRack?' sel':'')+'" data-glean-id="hall-'+r.id+'">'+
-        '<div class="rt-h"><b>'+r.id+'</b>'+badge+'</div>'+
+      if (!r.on){ html+='<div class="rt-tile empty"><button class="add-btn" type="button" onclick="hallToggle(\''+r.id+'\')">+ Add rack '+r.id+'</button><span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):'not on BMS')+'</span></div>'; return; }
+      var c=rackCalc(r), pct=Math.min(100,c.dem/c.cap*100);
+      var badge = r.id==='A1' ? '<span class="rt-badge ref">R01 · Rack View</span>' : '<span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):'not on BMS')+'</span>';
+      var chip = '<button type="button" class="plat-chip p-'+r.plat+'" onclick="hallPlat(\''+r.id+'\')" title="Switch platform (XE9780L / XE9785L)">'+r.plat+' ⇄</button>';
+      var mid = '<div class="rt-act"><div class="stepper"><button type="button" onclick="hallNodes(\''+r.id+'\',-1)" aria-label="Remove node from '+r.id+'">−</button><span>'+c.nodes+'</span><button type="button" onclick="hallNodes(\''+r.id+'\',1)" aria-label="Add node to '+r.id+'">+</button></div><span class="rt-m">'+c.gpus+' GPU</span></div>';
+      var moveClass = moveRack===r.id ? ' move-selected' : (moveRack ? ' move-target' : '');
+      var moveClick = r.id!=='A1' && r.on ? ' onclick="hallSelectForMove(\''+r.id+'\')" title="Click to select for moving, then click target position"' : '';
+      var moveTargetClick = moveRack && r.id!==moveRack ? ' onclick="hallMoveTo(\''+r.id+'\')" title="Click to move selected rack here"' : '';
+      html+='<div class="rt-tile '+(c.st!=='good'?c.st:'')+(r.id===selRack?' sel':'')+moveClass+'" data-glean-id="hall-'+r.id+'"'+moveClick+moveTargetClick+'>'+
+        '<div class="rt-h"><b>'+r.id+'</b>'+badge+(moveRack===r.id?' <span class="move-indicator">Moving...</span>':'')+'</div>'+
         '<div class="rt-act">'+chip+'</div>'+
         mid+
         '<div class="rt-m"><b>'+c.dem.toFixed(0)+'</b> / '+c.cap+' kW · '+(c.peak>0?c.peak.toFixed(0)+'°C':'—')+'</div>'+
         '<div class="bar" style="margin-top:0"><span style="width:'+pct+'%;background:'+(c.st==='good'?'var(--primary)':col[c.st])+'"></span></div>'+
         '<div class="rt-act"><span class="pill '+c.st+'" style="font-size:9px;padding:1px 6px">'+c.lab+'</span><button class="lnk" type="button" onclick="hallToggle(\''+r.id+'\')" '+(r.id==='A1'?'disabled title="A1 is the reference rack"':'')+'>Remove</button></div>'+
-        moveBtns+
         '</div>';
     });
     html+='</div>';
