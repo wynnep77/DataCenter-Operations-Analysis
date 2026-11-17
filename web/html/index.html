@@ -183,12 +183,11 @@ html:not([data-ui='dark']) .cabinet{box-shadow:0 10px 24px rgba(20,40,60,.25),in
 .cfg-row .rl{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center}
 .rt-tile{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .rt-tile.sel{box-shadow:0 0 0 2px var(--primary)}
-.rt-tile.move-selected{box-shadow:0 0 0 2px var(--good);cursor:pointer}
-.rt-tile.move-target{cursor:pointer;opacity:0.8}
-.rt-tile.move-target:hover{opacity:1;box-shadow:0 0 0 2px var(--warn)}
+.rt-tile.dragging{box-shadow:0 0 0 2px var(--good);opacity:0.6;cursor:grabbing}
+.rt-tile.drop-target{cursor:pointer;opacity:0.8}
+.rt-tile.drop-target:hover{opacity:1;box-shadow:0 0 0 2px var(--warn)}
 .rt-tile.warn{border-color:var(--warn)}.rt-tile.alarm{border-color:var(--alarm)}
 .rt-tile.empty{border-style:dashed;background:transparent;align-items:center;justify-content:center;min-height:104px}
-.move-indicator{font-size:9px;color:var(--good);font-weight:600}
 .rt-h{display:flex;justify-content:space-between;align-items:center;gap:4px}
 .rt-h b{font-size:13px;color:var(--text)}
 .rt-badge{font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -841,6 +840,7 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
         <span>All racks</span><div class="stepper"><button type="button" onclick="setNodes(-1)" aria-label="Remove a node from every rack">−</button><span id="cfgAllVal">4</span><button type="button" onclick="setNodes(1)" aria-label="Add a node to every rack">+</button></div>
         <span>Racks</span><div class="stepper"><button type="button" onclick="hallStep(-1)" aria-label="Remove one rack">−</button><span id="rackCnt1">8</span><button type="button" onclick="hallStep(1)" aria-label="Add one rack">+</button></div>
         <div class="mode-toggle" title="Rear-door heat exchangers"><button id="rdOn1" class="on" type="button" onclick="setRearDoors(true)">Rear doors · 100% to water</button><button id="rdOff1" type="button" onclick="setRearDoors(false)">No rear doors</button></div>
+        <button class="btn" type="button" onclick="hallAddAir()" title="Add an air-cooled rack in the next free position">+ Air rack</button>
         <button class="btn" type="button" onclick="hallFill()">Fill 2 × 4</button>
         <button class="btn" type="button" onclick="hallReset()">Reset default</button>
         <button class="btn" type="button" onclick="hallClear()" title="Clear saved configuration and reset to defaults">Clear saved</button>
@@ -1321,21 +1321,46 @@ var AIRSRV = {
   XE9780:{ name:'PowerEdge XE9780', u:10, idle:4, base:1.5, max:4, cpu:'2× Intel Xeon 6',
            opts:{ B300:{label:'8× NVIDIA B300 · 1,100 W', gpus:8, w:1100, tBase:33, tK:26}, B200:{label:'8× NVIDIA B200 · 1,000 W', gpus:8, w:1000, tBase:32, tK:25} } },
   XE7740:{ name:'PowerEdge XE7740', u:4, idle:1.5, base:0, max:99, cpu:'2× Intel Xeon 6',
-           opts:{ DW600:{label:'8× double-wide PCIe GPU · 600 W', gpus:8, w:600, tBase:30, tK:24}, SW75:{label:'16× single-wide PCIe GPU · 75 W', gpus:16, w:75, tBase:26, tK:16} } },
-  R7725: { name:'PowerEdge R7725', u:2, idle:0.5, base:1.8, max:99, cpu:'2× AMD EPYC 9005',
-           opts:{ none:{label:'CPU only', gpus:0, w:0, tBase:0, tK:0}, DW450:{label:'2× double-wide GPU · 450 W', gpus:2, w:450, tBase:30, tK:22}, SW75:{label:'6× single-wide GPU · 75 W', gpus:6, w:75, tBase:26, tK:16} } }
+           opts:{ RTXPro6000:{label:'8× RTXPro6000 · 600 W', gpus:8, w:600, tBase:30, tK:24}, DW600:{label:'8× double-wide PCIe GPU · 600 W', gpus:8, w:600, tBase:30, tK:24}, SW75:{label:'16× single-wide PCIe GPU · 75 W', gpus:16, w:75, tBase:26, tK:16} } },
+  R7725_RT:{ name:'PowerEdge R7725 (RTXPro)', u:2, idle:0.5, base:1.8, max:99, cpu:'2× AMD EPYC 9005',
+           opts:{ RTXPro6000:{label:'8× RTXPro6000 · 600 W', gpus:8, w:600, tBase:30, tK:24}, RTXPro4500:{label:'8× RTXPro4500 · 450 W', gpus:8, w:450, tBase:28, tK:22}, DW450:{label:'2× double-wide GPU · 450 W', gpus:2, w:450, tBase:30, tK:22}, SW75:{label:'6× single-wide GPU · 75 W', gpus:6, w:75, tBase:26, tK:16} } },
+  R7725_MI:{ name:'PowerEdge R7725 (MI350)', u:2, idle:0.5, base:1.8, max:99, cpu:'2× AMD EPYC 9005',
+           opts:{ MI350P:{label:'8× MI350P · 700 W', gpus:8, w:700, tBase:32, tK:25}, DW450:{label:'2× double-wide GPU · 450 W', gpus:2, w:450, tBase:30, tK:22}, SW75:{label:'6× single-wide GPU · 75 W', gpus:6, w:75, tBase:26, tK:16} } },
+  switches:{ name:'Dell Z9864F Switch', u:2, idle:1.5, base:0, max:2, cpu:'Switch ASIC',
+           opts:{ default:{label:'2U Dell Z9864F Switch', gpus:0, w:150, tBase:25, tK:15} } }
 };
 var AIR = { U:48, swU:2, swKW:1.5 };
 var AIRPRE = {
-  mixed:{l:'Mixed',     n:{XE9780:1,XE7740:2,R7725:4}},
-  train:{l:'Training',  n:{XE9780:3,XE7740:0,R7725:2}},
-  infer:{l:'Inference', n:{XE9780:0,XE7740:6,R7725:4}},
-  cpu:  {l:'CPU',       n:{XE9780:0,XE7740:0,R7725:16}},
-  empty:{l:'Empty',     n:{XE9780:0,XE7740:0,R7725:0}}
+  mixed:{l:'Mixed',     n:{XE9780:1,XE7740:2,R7725_RT:2,R7725_MI:2,switches:1}},
+  train:{l:'Training',  n:{XE9780:3,XE7740:0,R7725_RT:0,R7725_MI:0,switches:1}},
+  infer:{l:'Inference', n:{XE9780:0,XE7740:6,R7725_RT:0,R7725_MI:0,switches:1}},
+  cpu:  {l:'CPU',       n:{XE9780:0,XE7740:0,R7725_RT:0,R7725_MI:16,switches:1}},
+  empty:{l:'Empty',     n:{XE9780:0,XE7740:0,R7725_RT:0,R7725_MI:0,switches:1}}
 };
 function airSpec(r,k){
   var m=AIRSRV[k], o=m.opts[r.opt&&r.opt[k]]||m.opts[Object.keys(m.opts)[0]];
   return { m:m, o:o, gpus:o.gpus, idle:m.idle, dyn:m.base+AIR_K*o.gpus*o.w/1000, tBase:o.tBase, tK:o.tK };
+}
+function airCalc(r){
+  var u=S.util, dem=AIR.swKW, it=AIR.swKW, gpus=0, srv=0, U=AIR.swU, pk=0, thMax=0, rows=[];
+  Object.keys(AIRSRV).forEach(function(k){
+    var sp=airSpec(r,k), n=r.air[k]||0; if(!n) return;
+    var th=0, t=0;
+    if (sp.gpus){
+      for (var j=0;j<30;j++){ t = S.roomTemp + sp.tBase + sp.tK*u*(1-th); th = th*0.6 + 0.4*clamp((t-86)/8,0,1)*0.3; }
+      if (th<0.003) th=0;
+      t = S.roomTemp + sp.tBase + sp.tK*u*(1-th);
+      if (t>pk) pk=t; if (th>thMax) thMax=th;
+    }
+    var kd=sp.idle+sp.dyn*u, ki=sp.idle+sp.dyn*u*(1-th);
+    dem+=n*kd; it+=n*ki; gpus+=n*sp.gpus; srv+=n; U+=n*sp.m.u;
+    rows.push({k:k, n:n, kw:ki, t:t, th:th, gpus:sp.gpus});
+  });
+  var door=!!r.door, h2w=door?Math.min(it,LIM.cl23):0, air=it-h2w;
+  var st=(dem>LIM.airRack||thMax>0.005)?'alarm':(dem>=0.9*LIM.airRack?'warn':'good');
+  var lab=thMax>0.005?'Throttling':(dem>LIM.airRack?'Over 80 kW':(st==='warn'?'Near limit':'OK'));
+  return { isAir:true, dem:dem, it:it, ex:0, air:air, h2w:h2w, h2wDem:door?Math.min(dem,LIM.cl23):0, peak:pk, thr:thMax, nodes:0, on:0, srv:srv, gpus:gpus, U:U, Umax:r.rackU||AIR.U, rows:rows,
+           mixr:it>0?h2w/it:0, cap:LIM.airRack, st:st, lab:lab };
 }
 function tick(){
   S.t+=2; S.uptime+=2; S.dataAge=0;
@@ -1501,10 +1526,10 @@ function loadConstraints(){
 var HALL=[];
 var HALL_ROW=4, HALL_MAX=8;
 // default: Row A XE9780L, Row B XE9785L (A1–A4 / B1–B4 on the BMS)
-function hallDefault(r){ r.on = r.pos<=4; r.nodes=4; r.plat = r.row==='A'?'XE9780L':'XE9785L'; r.air={XE9780:1,XE7740:2,R7725:4}; r.opt={XE9780:'B300',XE7740:'DW600',R7725:'none'}; r.rackU=48; r.door=false; }
+function hallDefault(r){ r.on = r.pos<=4; r.nodes=4; r.plat = r.row==='A'?'XE9780L':'XE9785L'; r.air={XE9780:0,XE7740:0,R7725_RT:0,R7725_MI:0,R7725_RT4500:0,switches:1}; r.opt={XE9780:'B300',XE7740:'RTXPro6000',R7725_RT:'RTXPro6000',R7725_MI:'MI350P',R7725_RT4500:'RTXPro4500'}; r.rackU=48; r.door=false; }
 ['A','B'].forEach(function(row,ri){ for (var p=1;p<=HALL_ROW;p++){ var r={id:row+p, row:row, pos:p, bms:ri*4+p}; hallDefault(r); HALL.push(r); } });
 var selRack='A1';
-var moveRack=null; // rack selected for moving
+var draggedRack=null; // rack being dragged
 
 // ===== Hall persistence =====
 function hallSave(){
@@ -1535,7 +1560,7 @@ function hallLoad(){
     });
     var savedNodeCount = localStorage.getItem('dcoaNodeCount');
     if (savedNodeCount) S.nodeCount = parseInt(savedNodeCount, 10) || 4;
-    moveRack=null; // always clear move selection on load
+    draggedRack=null; // always clear drag selection on load
     return true;
   } catch(e){ console.warn('Failed to load hall config:', e); return false; }
 }
@@ -1543,7 +1568,7 @@ function hallClear(){
   try {
     localStorage.removeItem('dcoaHallConfig');
     localStorage.removeItem('dcoaNodeCount');
-    moveRack=null;
+    draggedRack=null;
     hallReset();
   } catch(e){ console.warn('Failed to clear hall config:', e); }
 }
@@ -1623,16 +1648,24 @@ function platLabel(r){ return r.plat==='AIR' ? 'air-cooled' : r.plat; }
 function rackHasDoor(r){ return r.plat==='AIR' ? !!r.door : S.rearDoors; }
 function hallPlat(id){
   var r=hallRack(id); if(!r) return;
-  var seq = ['XE9780L','XE9785L'];
+  var seq = ['XE9780L','XE9785L','AIR'];
   var i=seq.indexOf(r.plat); r.plat=seq[(i+1)%seq.length];
   if (r.id==='A1'){ rackBuilt=false; selNode=0; }
-  hallLog('rack '+id+' set to '+PLAT[r.plat].name);
+  if (r.plat==='AIR') selAir=r.id;
+  hallLog('rack '+id+' set to '+(r.plat==='AIR'?'air-cooled':PLAT[r.plat].name));
   hallChanged();
 }
 var selAir='A5';
 function airRacks(){ return HALL.filter(function(r){ return r.on && r.plat==='AIR'; }); }
 function airUsed(r){ var u=AIR.swU; Object.keys(AIRSRV).forEach(function(k){ u+=(r.air[k]||0)*AIRSRV[k].u; }); return u; }
 function airMax(r,k){ var m=AIRSRV[k], cur=r.air[k]||0; return Math.min(m.max, cur+Math.floor(((r.rackU||AIR.U)-airUsed(r))/m.u)); }
+function airQty(id,k,v){
+  var r=hallRack(id); if(!r||r.plat!=='AIR') return;
+  var m=AIRSRV[k], cur=r.air[k]||0, want=parseInt(v,10); if (isNaN(want)) want=cur;
+  want=Math.max(0,want);
+  var mx=airMax(r,k), n=Math.min(want,mx);
+  if (n!==cur){ r.air[k]=n; hallLog('rack '+id+' '+m.name+' set to '+n); hallChanged(); }
+}
 function airQty(id,k,v){
   var r=hallRack(id); if(!r||r.plat!=='AIR') return;
   var m=AIRSRV[k], cur=r.air[k]||0, want=parseInt(v,10); if (isNaN(want)) want=cur;
@@ -1650,6 +1683,13 @@ function airOpt(id,k,o){
   var r=hallRack(id); if(!r||!AIRSRV[k].opts[o]) return;
   r.opt[k]=o; selAir=id;
   hallLog('rack '+id+' '+AIRSRV[k].name+' option set to '+AIRSRV[k].opts[o].label);
+  hallChanged();
+}
+function airPreset(id,pre){
+  var r=hallRack(id); if(!r) return;
+  var p=AIRPRE[pre]; if(!p) return;
+  Object.keys(p.n).forEach(function(k){ r.air[k]=p.n[k]; });
+  hallLog('rack '+id+' preset '+p.l+' applied');
   hallChanged();
 }
 function airSize(id,U){
@@ -1672,8 +1712,11 @@ function airDoor(id,on){
   hallChanged();
 }
 function hallAddAir(){
-  logEvent(consoleEvents,'warn','Air racks not available in 4-position configuration');
-  render();
+  var r=hallOrder().filter(function(x){ return !x.on; })[0];
+  if (!r){ logEvent(consoleEvents,'warn','No free position for another air rack'); render(); return; }
+  r.plat='AIR'; r.on=true; selAir=r.id;
+  hallLog('added air rack '+r.id);
+  hallChanged();
 }
 function selectAir(id){ selAir=id; renderAir(''); renderAir('_t'); }
 var airSig={};
@@ -1686,8 +1729,8 @@ function renderAir(ctx){
   if (!list.length){
     if (airSig[ctx]!=='none'){
       airSig[ctx]='none'; setTxt('airTitle'+ctx,'none in hall');
-      if (sel) sel.innerHTML='';
-      body.innerHTML='<p style="font-size:12px;color:var(--text2);margin:8px 0 0">Air-cooled racks not available in 4-position configuration.</p>';
+      if (sel) sel.innerHTML='<button type="button" onclick="hallAddAir()">+ Air rack</button>';
+      body.innerHTML='<p style="font-size:12px;color:var(--text2);margin:8px 0 0">No air-cooled rack in the hall. Use + Air rack to add one in the next free position, or click the platform tag on a rack to switch to air-cooled.</p>';
     }
     return;
   }
@@ -1696,7 +1739,7 @@ function renderAir(ctx){
   var sig=[selAir, list.map(function(x){ return x.id; }).join(','), JSON.stringify(r.air), JSON.stringify(r.opt), r.door, RU].join('|');
   if (airSig[ctx]!==sig){
     airSig[ctx]=sig;
-    if (sel) sel.innerHTML = list.map(function(x){ return '<button type="button" class="'+(x.id===selAir?'on':'')+'" onclick="selectAir(\''+x.id+'\')">'+x.id+'</button>'; }).join('');
+    if (sel) sel.innerHTML = list.map(function(x){ return '<button type="button" class="'+(x.id===selAir?'on':'')+'" onclick="selectAir(\''+x.id+'\')">'+x.id+'</button>'; }).join('')+'<button type="button" onclick="hallAddAir()" title="Add another air-cooled rack">+ Air rack</button>';
     var q=function(v){ return '\''+v+'\''; };
     var bar='<div class="air-bar"><span>Rack</span><div class="mode-toggle">'+[48,52].map(function(U){ return '<button type="button" class="'+(RU===U?'on':'')+'" onclick="airSize('+q(id)+','+U+')">IR50'+U+' · '+U+'U</button>'; }).join('')+'</div>'+
       '<span>Presets</span>'+Object.keys(AIRPRE).map(function(p){ return '<button class="btn" type="button" onclick="airPreset('+q(id)+','+q(p)+')">'+AIRPRE[p].l+'</button>'; }).join('')+'</div>';
@@ -1785,40 +1828,47 @@ function hallStep(d){
 }
 function hallReset(){
   HALL.forEach(hallDefault);
-  S.nodeCount=4; rackBuilt=false; selRack='A1'; moveRack=null;
+  S.nodeCount=4; rackBuilt=false; selRack='A1'; draggedRack=null;
   hallLog('reset to default layout · A1–A4 XE9780L, B1–B4 XE9785L'); hallChanged();
   hallSave();
 }
-function hallSelectForMove(id){
+function hallDragStart(id, e){
   var r=hallRack(id);
   if (!r || !r.on || r.id==='A1') return;
-  if (moveRack===id){
-    moveRack=null; // deselect
-  } else {
-    moveRack=id; // select for moving
-  }
+  draggedRack=id;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain', id);
   render();
 }
-function hallMoveTo(targetId){
-  if (!moveRack) return;
-  var source=hallRack(moveRack), target=hallRack(targetId);
+function hallDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+}
+function hallDrop(targetId, e){
+  e.preventDefault();
+  if (!draggedRack) return;
+  var source=hallRack(draggedRack), target=hallRack(targetId);
   if (!source || !target || source.id===target.id) return;
   if (!target.on && target.id!=='A1'){
     // Move to empty position
-    var tempOn = source.on, tempNodes = source.nodes, tempPlat = source.plat, tempAir = source.air, tempOpt = source.opt, tempRackU = source.rackU, tempDoor = source.door;
-    source.on = false; source.nodes = 4; source.plat = source.row==='A'?'XE9780L':'XE9785L'; source.air={XE9780:1,XE7740:2,R7725:4}; source.opt={XE9780:'B300',XE7740:'DW600',R7725:'none'}; source.rackU=48; source.door=false;
+    var tempOn = source.on, tempNodes = source.nodes, tempPlat = source.plat, tempAir = JSON.parse(JSON.stringify(source.air)), tempOpt = JSON.parse(JSON.stringify(source.opt)), tempRackU = source.rackU, tempDoor = source.door;
+    source.on = false; source.nodes = 4; source.plat = source.row==='A'?'XE9780L':'XE9785L'; source.air={XE9780:0,XE7740:0,R7725_RT:0,R7725_MI:0,R7725_RT4500:0,switches:1}; source.opt={XE9780:'B300',XE7740:'RTXPro6000',R7725_RT:'RTXPro6000',R7725_MI:'MI350P',R7725_RT4500:'RTXPro4500'}; source.rackU=48; source.door=false;
     target.on = tempOn; target.nodes = tempNodes; target.plat = tempPlat; target.air = tempAir; target.opt = tempOpt; target.rackU = tempRackU; target.door = tempDoor;
-    hallLog('moved rack '+moveRack+' to '+targetId);
-  } else if (target.on && target.id!=='A1' && target.id!==moveRack){
+    hallLog('moved rack '+draggedRack+' to '+targetId);
+  } else if (target.on && target.id!=='A1' && target.id!==draggedRack){
     // Swap with occupied position
-    var tempOn = source.on, tempNodes = source.nodes, tempPlat = source.plat, tempAir = source.air, tempOpt = source.opt, tempRackU = source.rackU, tempDoor = source.door;
-    source.on = target.on; source.nodes = target.nodes; source.plat = target.plat; source.air = target.air; source.opt = target.opt; source.rackU = target.rackU; source.door = target.door;
+    var tempOn = source.on, tempNodes = source.nodes, tempPlat = source.plat, tempAir = JSON.parse(JSON.stringify(source.air)), tempOpt = JSON.parse(JSON.stringify(source.opt)), tempRackU = source.rackU, tempDoor = source.door;
+    source.on = target.on; source.nodes = target.nodes; source.plat = target.plat; source.air = JSON.parse(JSON.stringify(target.air)); source.opt = JSON.parse(JSON.stringify(target.opt)); source.rackU = target.rackU; source.door = target.door;
     target.on = tempOn; target.nodes = tempNodes; target.plat = tempPlat; target.air = tempAir; target.opt = tempOpt; target.rackU = tempRackU; target.door = tempDoor;
-    hallLog('swapped racks '+moveRack+' and '+targetId);
+    hallLog('swapped racks '+draggedRack+' and '+targetId);
   }
-  moveRack=null;
+  draggedRack=null;
   hallChanged();
   hallSave();
+}
+function hallDragEnd(){
+  draggedRack=null;
+  render();
 }
 function hallFill(){
   HALL.forEach(function(r){ if(!r.on && r.pos<=4){ r.on=true; r.nodes=S.nodeCount; } });
@@ -3020,16 +3070,18 @@ function renderHallCfg(){
     html+='<div class="cfg-row"><div class="rl">Row '+row+'</div>';
     var L=hallLen();
     HALL.filter(function(r){return r.row===row && r.pos<=L;}).forEach(function(r){
-      if (!r.on){ html+='<div class="rt-tile empty"><button class="add-btn" type="button" onclick="hallToggle(\''+r.id+'\')">+ Add rack '+r.id+'</button><span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):'not on BMS')+'</span></div>'; return; }
-      var c=rackCalc(r), pct=Math.min(100,c.dem/c.cap*100);
-      var badge = r.id==='A1' ? '<span class="rt-badge ref">R01 · Rack View</span>' : '<span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):'not on BMS')+'</span>';
-      var chip = '<button type="button" class="plat-chip p-'+r.plat+'" onclick="hallPlat(\''+r.id+'\')" title="Switch platform (XE9780L / XE9785L)">'+r.plat+' ⇄</button>';
-      var mid = '<div class="rt-act"><div class="stepper"><button type="button" onclick="hallNodes(\''+r.id+'\',-1)" aria-label="Remove node from '+r.id+'">−</button><span>'+c.nodes+'</span><button type="button" onclick="hallNodes(\''+r.id+'\',1)" aria-label="Add node to '+r.id+'">+</button></div><span class="rt-m">'+c.gpus+' GPU</span></div>';
-      var moveClass = moveRack===r.id ? ' move-selected' : (moveRack ? ' move-target' : '');
-      var moveClick = r.id!=='A1' && r.on ? ' onclick="hallSelectForMove(\''+r.id+'\')" title="Click to select for moving, then click target position"' : '';
-      var moveTargetClick = moveRack && r.id!==moveRack ? ' onclick="hallMoveTo(\''+r.id+'\')" title="Click to move selected rack here"' : '';
-      html+='<div class="rt-tile '+(c.st!=='good'?c.st:'')+(r.id===selRack?' sel':'')+moveClass+'" data-glean-id="hall-'+r.id+'"'+moveClick+moveTargetClick+'>'+
-        '<div class="rt-h"><b>'+r.id+'</b>'+badge+(moveRack===r.id?' <span class="move-indicator">Moving...</span>':'')+'</div>'+
+      if (!r.on){ html+='<div class="rt-tile empty" ondragover="hallDragOver(event)" ondrop="hallDrop(\''+r.id+'\',event)"><button class="add-btn" type="button" onclick="hallToggle(\''+r.id+'\')">+ Add rack '+r.id+'</button><span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):'not on BMS')+'</span></div>'; return; }
+      var c=rackCalc(r), pct=Math.min(100,c.dem/c.cap*100), isAir=!!c.isAir;
+      var badge = r.id==='A1' ? '<span class="rt-badge ref">R01 · Rack View</span>' : '<span class="rt-badge">'+(r.bms?'BMS R'+('0'+r.bms).slice(-2):(isAir?'air · CRAC':'not on BMS'))+'</span>';
+      var chip = '<button type="button" class="plat-chip p-'+r.plat+'" onclick="hallPlat(\''+r.id+'\')" title="Switch platform (XE9780L / XE9785L / air rack)">'+(isAir?'Air rack':r.plat)+' ⇄</button>';
+      var mid = isAir
+        ? '<div class="rt-act"><span class="rt-m">'+(r.air.XE9780||0)+'·'+(r.air.XE7740||0)+'·'+(r.air.R7725_RT||0)+'·'+(r.air.R7725_MI||0)+' srv</span><button class="lnk" type="button" onclick="selectAir(\''+r.id+'\')" title="Edit in the Air-cooled Rack Builder below">Edit ↓</button><span class="rt-m">'+c.gpus+' GPU</span></div>'
+        : '<div class="rt-act"><div class="stepper"><button type="button" onclick="hallNodes(\''+r.id+'\',-1)" aria-label="Remove node from '+r.id+'">−</button><span>'+c.nodes+'</span><button type="button" onclick="hallNodes(\''+r.id+'\',1)" aria-label="Add node to '+r.id+'">+</button></div><span class="rt-m">'+c.gpus+' GPU</span></div>';
+      var dragClass = draggedRack===r.id ? ' dragging' : (draggedRack ? ' drop-target' : '');
+      var dragAttrs = r.id!=='A1' && r.on ? ' draggable="true" ondragstart="hallDragStart(\''+r.id+'\',event)" ondragend="hallDragEnd(event)"' : '';
+      var dropAttrs = ' ondragover="hallDragOver(event)" ondrop="hallDrop(\''+r.id+'\',event)"';
+      html+='<div class="rt-tile '+(c.st!=='good'?c.st:'')+(r.id===selRack?' sel':'')+dragClass+'" data-glean-id="hall-'+r.id+'"'+dragAttrs+dropAttrs+'>'+
+        '<div class="rt-h"><b>'+r.id+'</b>'+badge+'</div>'+
         '<div class="rt-act">'+chip+'</div>'+
         mid+
         '<div class="rt-m"><b>'+c.dem.toFixed(0)+'</b> / '+c.cap+' kW · '+(c.peak>0?c.peak.toFixed(0)+'°C':'—')+'</div>'+
