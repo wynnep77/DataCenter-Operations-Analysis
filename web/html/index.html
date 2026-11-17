@@ -3533,9 +3533,33 @@ function admDelta(a,b){
 }
 function admTwinContext(){
   var cur=scnRead(), sc=ADM.scn||cur, eC=scnEval(cur,true), eS=scnEval(sc,false), eB=scnEval(scnReference(),true);
+  var rackMetrics = [];
+  HALL.forEach(function(r){
+    if (!r.on) return;
+    var c=rackCalc(r);
+    rackMetrics.push({
+      id: r.id,
+      platform: r.plat,
+      nodes: c.nodes,
+      gpus: c.gpus,
+      powerKw: admR(c.dem,1),
+      itKw: admR(c.it,1),
+      excessKw: admR(c.ex,1),
+      heatToWaterKw: admR(c.h2w,1),
+      heatToAirKw: admR(c.air,1),
+      heatCapturePct: admR(c.mixr*100,1),
+      peakGpuC: admR(c.peak,1),
+      throttlePct: admR(c.thr*100,1),
+      status: c.st,
+      isAir: !!c.isAir,
+      bmsBranch: r.bms ? 'R'+('0'+r.bms).slice(-2) : 'not on BMS',
+      airServers: c.srv || 0
+    });
+  });
   return { simulated:true, note:'Synthetic Digital Twin evaluations by the dashboard steady-state model (v1 formulas, no transient fault ramps).',
            current:admEvCompact(eC), baseline:admEvCompact(eB), scenario:admEvCompact(eS), scenarioIsCurrent:JSON.stringify(cur)===JSON.stringify(scnMerge(cur,sc)),
            delta:admDelta(eC,eS), headroom:eS.headroom, levers:scnLevers(),
+           racks:rackMetrics,
            live:{ overallStatus:overallStatus(), failureScenario:scnRunning?SCENARIOS[selScn].title:null, cracUnitsAvailable:CX.u.filter(cxAvail).length,
                   cdusOnline:CX.cdu.filter(function(c){ return !c.fail; }).length, airRackServers:hallTotals().srv } };
 }
