@@ -8,8 +8,8 @@
 :root{
   color-scheme:light;
   --bg:#f7f7f7; --panel:#ffffff; --panel2:#ffffff; --text:#0e0e0e; --text2:#5a6577; --dim:#6e6e6e;
-  --primary:#0672CB; --secondary:#6c757d; --hot:#dc3545; --good:#28a745; --warn:#ffc107; --alarm:#dc3545;
-  --good-bg:rgba(40,167,69,.1); --warn-bg:rgba(255,193,7,.1); --alarm-bg:rgba(220,53,69,.1);
+  --primary:#0672CB; --secondary:#6c757d; --hot:#dc3545; --good:#0672CB; --warn:#ffc107; --alarm:#dc3545;
+  --good-bg:rgba(6,114,203,.1); --warn-bg:rgba(255,193,7,.1); --alarm-bg:rgba(220,53,69,.1);
   --hx-cold:#0672CB; --hx-hot:#dc3545; --grid:#e5e7eb; --border:#dee2e6; --shadow:0 2px 8px rgba(0,0,0,.08);
   --on-primary:#ffffff;
   --h3-front:#e9ecef; --h3-side:#adb5bd; --h3-rear:#ced4da; --h3-top:#e2e6ea; --h3-coil:#dee2e6; --h3-id:#343a40; --h3-off:#6c757d;
@@ -19,8 +19,8 @@
 html[data-ui='dark']{
   color-scheme:dark;
   --bg:#0a0a0a; --panel:#141414; --panel2:#1a1a1a; --text:#e0e0e0; --text2:#a0a0a0; --dim:#707070;
-  --primary:#3ba7ff; --secondary:#9ca3af; --hot:#ff6b6b; --good:#51cf66; --warn:#ffd43b; --alarm:#ff6b6b;
-  --good-bg:rgba(81,207,102,.15); --warn-bg:rgba(255,212,59,.15); --alarm-bg:rgba(255,107,107,.15);
+  --primary:#3ba7ff; --secondary:#9ca3af; --hot:#ff6b6b; --good:#3ba7ff; --warn:#ffd43b; --alarm:#ff6b6b;
+  --good-bg:rgba(59,167,255,.15); --warn-bg:rgba(255,212,59,.15); --alarm-bg:rgba(255,107,107,.15);
   --hx-cold:#3ba7ff; --hx-hot:#ff6b6b; --grid:#2a2a2a; --border:#333333; --shadow:0 4px 12px rgba(0,0,0,.4);
   --on-primary:#0a0a0a;
   --h3-front:#1a1a1a; --h3-side:#252525; --h3-rear:#303030; --h3-top:#3a3a3a; --h3-coil:#2a2a2a; --h3-id:#e0e0e0; --h3-off:#707070;
@@ -56,7 +56,7 @@ a{color:var(--primary)}
 .banner .bt{font-size:15px;font-weight:700;color:#fff}
 .banner .bd{font-size:13px;color:rgba(255,255,255,.9);margin-top:4px}
 .banner .meta{margin-left:auto;text-align:right;font-size:12px;color:rgba(255,255,255,.8)}
-.b-good{background:linear-gradient(135deg,#28a745 0%,#1e7e34 100%);border-color:#28a745;box-shadow:0 2px 8px rgba(40,167,69,.2)}
+.b-good{background:linear-gradient(135deg,#0672CB 0%,#0056b3 100%);border-color:#0672CB;box-shadow:0 2px 8px rgba(6,114,203,.2)}
 .b-good .ico{background:rgba(255,255,255,.2);color:#fff}
 .b-warn{background:linear-gradient(135deg,#ffc107 0%,#e0a800 100%);border-color:#ffc107;box-shadow:0 2px 8px rgba(255,193,7,.2)}
 .b-warn .ico{background:rgba(255,255,255,.2);color:#210}
@@ -76,7 +76,7 @@ a{color:var(--primary)}
 .kpi .val{font-size:28px;font-weight:700;margin-top:8px;color:#0e0e0e}
 .kpi .sub{font-size:12px;color:#6e6e6e;margin-top:4px;font-weight:500}
 .led{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;box-shadow:0 0 8px currentColor,0 0 12px currentColor;transition:all .2s ease}
-.led.good{background:#28a745;color:#28a745}
+.led.good{background:#0672CB;color:#0672CB}
 .led.warn{background:#ffc107;color:#ffc107}
 .led.alarm{background:#dc3545;color:#dc3545}
 /* tooltip */
@@ -488,7 +488,7 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
 
 <!-- ===================== LIVE CONSOLE ===================== -->
 <section class="panel active" id="panel-console" data-glean-id="panel-console">
-  <div class="banner b-good" id="consoleBanner" data-glean-id="console-banner">
+  <div class="banner b-info" id="consoleBanner" data-glean-id="console-banner">
     <div class="ico" id="cbIco">✓</div>
     <div>
       <div class="bt" id="cbTitle">System Nominal — All circuits operating within target temperature bands</div>
@@ -602,7 +602,7 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
 
 <!-- ===================== BMS MONITORING ===================== -->
 <section class="panel" id="panel-bms" data-glean-id="panel-bms">
-  <div class="banner b-good" id="bmsBanner" data-glean-id="bms-banner">
+  <div class="banner b-info" id="bmsBanner" data-glean-id="bms-banner">
     <div class="ico" id="bmsIco">✓</div>
     <div>
       <div class="bt" id="bmsTitle">BMS · All points normal</div>
@@ -695,7 +695,7 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
 
 <!-- ===================== RACK VIEW ===================== -->
 <section class="panel" id="panel-rack" data-glean-id="panel-rack">
-  <div class="banner b-good" id="rackBanner" data-glean-id="rack-banner">
+  <div class="banner b-info" id="rackBanner" data-glean-id="rack-banner">
     <div class="ico" id="rbIco">✓</div>
     <div>
       <div class="bt" id="rbTitle">Rack Healthy · Cooling Balanced</div>
@@ -912,7 +912,7 @@ table.adm-tbl .dl{display:block;font-size:10.5px;font-weight:500}
 
 <!-- ===================== SUSTAINABILITY ===================== -->
 <section class="panel" id="panel-sustain" data-glean-id="panel-sustain">
-  <div class="banner b-good" data-glean-id="sustain-banner">
+  <div class="banner b-info" data-glean-id="sustain-banner">
     <div class="ico">🌿</div>
     <div>
       <div class="bt">Efficiency &amp; Carbon · PUE</div>
@@ -1996,7 +1996,7 @@ function renderConsole(){
   var o=overallStatus();
   var b=document.getElementById('consoleBanner'), ico=document.getElementById('cbIco'),
       ti=document.getElementById('cbTitle');
-  b.className='banner '+(o==='good'?'b-good':(o==='warn'?'b-warn':'b-alarm'));
+  b.className='banner '+(o==='good'?'b-info':(o==='warn'?'b-warn':'b-alarm'));
   if(o==='good'){ ico.textContent='✓'; ti.textContent='System Nominal — All circuits operating within target temperature bands'; }
   else if(o==='warn'){ ico.textContent='!'; ti.textContent='Warning — Secondary loop drifting toward limit'; }
   else { ico.textContent='✕'; ti.textContent='ALARM — Secondary loop out of band, protection active'; }
@@ -2580,7 +2580,7 @@ function renderBms(){
   var st=B.status, nA=0, nW=0;
   B.alarms.forEach(function(a){ if(a.lv==='alarm') nA++; else nW++; });
   var bn=document.getElementById('bmsBanner');
-  bn.className='banner '+(st==='good'?'b-good':(st==='warn'?'b-warn':'b-alarm'));
+  bn.className='banner '+(st==='good'?'b-info':(st==='warn'?'b-warn':'b-alarm'));
   setTxt('bmsIco', st==='good'?'✓':(st==='warn'?'!':'✕'));
   setTxt('bmsTitle', st==='good' ? 'BMS · All points normal'
     : (st==='warn' ? 'BMS · '+nW+' warning'+(nW>1?'s':'')+' active' : 'BMS · '+nA+' alarm'+(nA>1?'s':'')+' active — '+B.alarms[0].msg));
@@ -2732,7 +2732,7 @@ function renderRack(){
   else if (dem>=0.9*rackCap() || dem>=0.9*LIM.power){ rb.className='banner b-warn'; ri.textContent='!'; rt.textContent='Rack near capacity · '+dem.toFixed(0)+' kW of '+capName(); }
   else if (!S.rearDoors && o==='good'){ rb.className='banner b-info'; ri.textContent='i'; rt.textContent='No rear door · cold plates capture '+Math.round(S.dlcShare*100)+'% · '+rackAir().toFixed(0)+' kW to room air (CRAC)'; }
   else if (o!=='good'){ rb.className='banner b-warn'; ri.textContent='!'; rt.textContent='Rack cooling imbalance — monitoring'; }
-  else { rb.className='banner b-good'; ri.textContent='✓'; rt.textContent='Rack Healthy · Cooling Balanced'; }
+  else { rb.className='banner b-info'; ri.textContent='✓'; rt.textContent='Rack Healthy · Cooling Balanced'; }
 
   var PP=a1P(); setTxt('rbDesc','Dell IR7050 50OU (21" OCP ORv3) · '+S.nodeCount+'× '+PP.name+' · '+PP.gpuLong+' ('+S.nodeCount*8+' GPUs) · '+(S.rearDoors?'uSystems CL23 rear-door HX':'no rear door'));
   document.getElementById('rbPower').textContent=it.toFixed(1)+' kW';
